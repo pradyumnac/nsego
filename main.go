@@ -20,10 +20,13 @@ var linkNn50 string = "https://www.nseindia.com/api/equity-stockIndices?index=NI
 var linkM400 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20MIDSMALLCAP%20400"
 var linkN100 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20100"
 
-var grabLinks = [4]string{linkN50, linkNn50, linkN100, linkM400}
-var grabLinksNames = [4]string{"N50", "NN50", "N100", "M400"}
+// GRABLINKS - Default NSE Links to be grabbed
+var GRABLINKS = [4]string{linkN50, linkNn50, linkN100, linkM400}
 
-func main() {
+// GRABLINKNAMES - Default NSE Grablinks Names
+var GRABLINKNAMES = [4]string{"N50", "NN50", "N100", "M400"}
+
+func getNSE(grabLinks [4]string, grabLinksNames [4]string) {
 	fmt.Println("Running Program: ")
 
 	client := &http.Client{
@@ -87,6 +90,19 @@ func main() {
 		cookies = response.Cookies()
 		response.Body.Close()
 		outFile.Close()
+	}
+}
+
+func main() {
+	ticker := time.NewTicker(5 * time.Second)
+
+	for true {
+		select {
+		case t := <-ticker.C:
+			log.Println("Tick at", t)
+			start := time.Now()
+			getNSE(GRABLINKS, GRABLINKNAMES)
+		}
 	}
 
 }
