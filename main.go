@@ -102,7 +102,7 @@ func main() {
 			log.Println("Tick at", t)
 			start := time.Now()
 			getNSE(GRABLINKS, GRABLINKNAMES)
+			fmt.Println(time.Since(start))
 		}
 	}
-
 }
