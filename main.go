@@ -21,12 +21,16 @@ var linkM400 string = "https://www.nseindia.com/api/equity-stockIndices?index=NI
 var linkN100 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20100"
 
 // GRABLINKS - Default NSE Links to be grabbed
-var GRABLINKS = [4]string{linkN50, linkNn50, linkN100, linkM400}
+var GRABLINKS = [2]string{linkN100, linkM400}
+
+//var GRABLINKS = [4]string{linkN50, linkNn50, linkN100, linkM400}
 
 // GRABLINKNAMES - Default NSE Grablinks Names
-var GRABLINKNAMES = [4]string{"N50", "NN50", "N100", "M400"}
+var GRABLINKNAMES = [2]string{"N100", "M400"}
 
-func getNSE(grabLinks [4]string, grabLinksNames [4]string) {
+//var GRABLINKNAMES = [4]string{"N50","NN50","N100", "M400"}
+
+func getNSE(grabLinks [2]string, grabLinksNames [2]string) {
 	fmt.Println("Running Program: ")
 
 	client := &http.Client{
