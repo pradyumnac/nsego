@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -26,16 +27,16 @@ var FETCHINTERVAL = 15
 // LINKLANDING -  Referrer page to get cookie for ultimate grab
 var LINKLANDING string = "https://www.nseindia.com/market-data/live-equity-market"
 
-var linkN50 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050"
-var linkNn50 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20NEXT%2050"
+var linkN50 string  = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050"
+var linkNN50 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20NEXT%2050"
 var linkM400 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20MIDSMALLCAP%20400"
 var linkN100 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20100"
 
 // GRABLINKS - Default NSE Links to be grabbed
-var GRABLINKS = [2]string{linkN100, linkM400}
+var GRABLINKS = [2]string{linkM400, linkN100}
 
 // GRABLINKNAMES - Default NSE Grablinks Names
-var GRABLINKNAMES = [2]string{"N100", "M400"}
+var GRABLINKNAMES = [2]string{"M400","N100"}
 
 //var GRABLINKNAMES = [4]string{"N50","NN50","N100", "M400"}
 
@@ -183,6 +184,7 @@ func getNSE(grabLinks [2]string, grabLinksNames [2]string) ([]NSEWatchlist, erro
 	cookies := getInitialCookie()
 	// log.Print(cookies)
 	request, err := http.NewRequest("GET", LINKLANDING, nil)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -194,7 +196,7 @@ func getNSE(grabLinks [2]string, grabLinksNames [2]string) ([]NSEWatchlist, erro
 			request.AddCookie(cookies[i])
 		}
 		request.Header.Set("Accept", "application/json, text/javascript, */*; q=0.01")
-		request.Header.Set("Referer", "https://www1.nseindia.com/live_market/dynaContent/live_watch/equities_stock_watch.htm")
+		request.Header.Set("Referer", "https://www.nseindia.com/market-data/live-equity-market")
 		request.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36")
 
 		var response, err = client.Do(request)
@@ -204,6 +206,7 @@ func getNSE(grabLinks [2]string, grabLinksNames [2]string) ([]NSEWatchlist, erro
 		defer response.Body.Close()
 
 		if response.StatusCode != http.StatusOK {
+			log.Printf("%d",response.StatusCode)
 			panic("Request not successful")
 
 		}
@@ -220,29 +223,15 @@ func getNSE(grabLinks [2]string, grabLinksNames [2]string) ([]NSEWatchlist, erro
 
 		log.Printf("%+s: %d\n", watchlist.Name, len(watchlist.Data))
 		sliceWatchlist = append(sliceWatchlist, watchlist)
-		// Copy data from HTTP response to file
-		// now := time.Now()
-		// dt := now.Format("02.01.2006")
-		// ts := now.Format("20060102150405")
-		// BASEPATH, _ := os.Getwd()
-		// BASEPATH = BASEPATH + "/export"
-		// os.MkdirAll(BASEPATH+"/"+dt, os.ModePerm)
-		// filepath := BASEPATH + "/" + dt + "/" + grabLinksNames[linkIndex] + "-" + ts + ".json"
-
-		// outFile, err := os.Create(filepath)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// _, err = io.Copy(outFile, response.Body)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		
 
 		//get latest cookies
-		cookies = response.Cookies()
-		// outFile.Close()
+		// cookies = response.Cookies() 
+		// using this messes up the subsequent request - 15/01/2021
+		// hence commenting out
 
 	}
+	
 	return sliceWatchlist, nil
 }
 
@@ -281,7 +270,7 @@ func createTablesIfNotExist(db *sql.DB) {
 		week_l_pct			DECIMAL NOT NULL,
 		y_high 				DECIMAL NOT NULL,
 		y_low 				DECIMAL NOT NULL,
-		day_volume 			INT NOT NULL,
+		day_volume 			DECIMAL NOT NULL,
 		day_trade_val 		DECIMAL NOT Null, 
 		trade_date 			TIMESTAMP NOT NULL,
 		last_update_time 	TIMESTAMPTZ NOT NULL);`
@@ -331,6 +320,14 @@ func insertPriceData(db *sql.DB, watchlist NSEWatchlist, dbMetaID int) {
 	_, err := stmt.Exec(vals...)
 	if err != nil {
 		log.Println("Error in inserting to NsePrices table ")
+		
+		f, _ := os.Create("insert-vals.log")
+    	defer f.Close()
+
+    	insdatastr := fmt.Sprintf("%v", vals)
+    	n, _ := f.WriteString(insdatastr)
+    	log.Println("Wrote to file: insert-vals.log, bytes %d", n)
+
 		panic(err)
 	}
 
@@ -418,7 +415,7 @@ func nseFetchLoop() {
 
 func main() {
 	//overwriting fetchg interval here
-	FETCHINTERVAL = 60
+	FETCHINTERVAL = 30
 
 	// insertQuery :=
 	nseFetchLoop()
