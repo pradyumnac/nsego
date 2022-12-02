@@ -1,18 +1,16 @@
 package main
 
 import (
-	"os"
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"encoding/json"
-
-	"database/sql"
 
 	_ "github.com/lib/pq"
 )
@@ -27,18 +25,40 @@ var FETCHINTERVAL = 15
 // LINKLANDING -  Referrer page to get cookie for ultimate grab
 var LINKLANDING string = "https://www.nseindia.com/market-data/live-equity-market"
 
-var linkN50 string  = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050"
-var linkNN50 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20NEXT%2050"
-var linkM400 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20MIDSMALLCAP%20400"
-var linkN100 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20100"
+type (
+	Url     string
+	UrlList map[string]Url
+)
 
-// GRABLINKS - Default NSE Links to be grabbed
-var GRABLINKS = [2]string{linkM400, linkN100}
+func GetAllEqIndices() UrlList {
+	return UrlList{
+		"n50":    "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"nn50":   "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"nm50":   "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"nm100":  "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"nm150":  "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"ns50":   "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"ns100":  "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"ns250":  "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"nms400": "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"n100":   "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"n200":   "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"n500mc": "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"nlm250": "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+		"nmc250": "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+	}
+	// more index will be filled in
+}
+
+var (
+	linkN50  string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050"
+	linkNN50 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20NEXT%2050"
+	linkM400 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20MIDSMALLCAP%20400"
+	linkN100 string = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20100"
+)
 
 // GRABLINKNAMES - Default NSE Grablinks Names
-var GRABLINKNAMES = [2]string{"M400","N100"}
-
-//var GRABLINKNAMES = [4]string{"N50","NN50","N100", "M400"}
+var GRABLINKNAMES = [2]string{"M400", "N100"}
 
 // NSEWatchlist Json Struct to get NSE response
 type NSEWatchlist struct {
@@ -184,7 +204,6 @@ func getNSE(grabLinks [2]string, grabLinksNames [2]string) ([]NSEWatchlist, erro
 	cookies := getInitialCookie()
 	// log.Print(cookies)
 	request, err := http.NewRequest("GET", LINKLANDING, nil)
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -199,14 +218,14 @@ func getNSE(grabLinks [2]string, grabLinksNames [2]string) ([]NSEWatchlist, erro
 		request.Header.Set("Referer", "https://www.nseindia.com/market-data/live-equity-market")
 		request.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36")
 
-		var response, err = client.Do(request)
+		response, err := client.Do(request)
 		if err != nil {
 			log.Fatal(err)
 		}
 		defer response.Body.Close()
 
 		if response.StatusCode != http.StatusOK {
-			log.Printf("%d",response.StatusCode)
+			log.Printf("%d", response.StatusCode)
 			panic("Request not successful")
 
 		}
@@ -223,15 +242,14 @@ func getNSE(grabLinks [2]string, grabLinksNames [2]string) ([]NSEWatchlist, erro
 
 		log.Printf("%+s: %d\n", watchlist.Name, len(watchlist.Data))
 		sliceWatchlist = append(sliceWatchlist, watchlist)
-		
 
-		//get latest cookies
-		// cookies = response.Cookies() 
+		// get latest cookies
+		// cookies = response.Cookies()
 		// using this messes up the subsequent request - 15/01/2021
 		// hence commenting out
 
 	}
-	
+
 	return sliceWatchlist, nil
 }
 
@@ -308,29 +326,28 @@ func insertPriceData(db *sql.DB, watchlist NSEWatchlist, dbMetaID int) {
 			data.LastUpdateTime, data.NearWKH, data.NearWKL, data.PerChange365D, data.PerChange365D, watchlist.MarketStatus.TradeDate)
 	}
 
-	//trim the last ,
+	// trim the last ,
 	insertQuery = insertQuery[0 : len(insertQuery)-1]
 
-	//prepare the statement
+	// prepare the statement
 	insertQuery = ReplaceSQL(insertQuery, "?")
 	// log.Println(vals)
 	stmt, _ := db.Prepare(insertQuery)
 
-	//format all vals at once
+	// format all vals at once
 	_, err := stmt.Exec(vals...)
 	if err != nil {
 		log.Println("Error in inserting to NsePrices table ")
-		
-		f, _ := os.Create("insert-vals.log")
-    	defer f.Close()
 
-    	insdatastr := fmt.Sprintf("%v", vals)
-    	n, _ := f.WriteString(insdatastr)
-    	log.Println("Wrote to file: insert-vals.log, bytes %d", n)
+		f, _ := os.Create("insert-vals.log")
+		defer f.Close()
+
+		insdatastr := fmt.Sprintf("%v", vals)
+		n, _ := f.WriteString(insdatastr)
+		log.Println("Wrote to file: insert-vals.log, bytes %d", n)
 
 		panic(err)
 	}
-
 }
 
 func insertTransMeta(db *sql.DB, watchlist NSEWatchlist, wlName string) int {
@@ -345,7 +362,7 @@ func insertTransMeta(db *sql.DB, watchlist NSEWatchlist, wlName string) int {
 	insertQuery := `INSERT INTO NseTransactionMeta (wl_name, advances, declines, unchanged, market_status, trade_date, indexName, ts) 
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`
 
-	//format all vals at once
+	// format all vals at once
 	_, err := db.Exec(insertQuery, wlName, watchlist.Advance.Advances, watchlist.Advance.Declines, watchlist.Advance.Unchanged, mktStatus, watchlist.MarketStatus.TradeDate, watchlist.Name, watchlist.Timestamp)
 
 	var id int
@@ -368,7 +385,6 @@ func insertTransMeta(db *sql.DB, watchlist NSEWatchlist, wlName string) int {
 	}
 
 	return id
-
 }
 
 func fetchLatest(db *sql.DB) error {
@@ -414,7 +430,7 @@ func nseFetchLoop() {
 }
 
 func main() {
-	//overwriting fetchg interval here
+	// overwriting fetchg interval here
 	FETCHINTERVAL = 30
 
 	// insertQuery :=
