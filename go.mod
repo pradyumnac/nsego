@@ -1,4 +1,4 @@
-module github.com/pradyumnac/marketdata
+module github.com/pradyumnac/nsedata
 
 go 1.14
 
